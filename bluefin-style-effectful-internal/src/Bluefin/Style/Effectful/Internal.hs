@@ -8,7 +8,7 @@ import Data.Kind (Type)
 import Data.Void (Void, absurd)
 import Effectful (Eff, runPureEff)
 import qualified Effectful as Eff
-import Effectful.Dispatch.Dynamic (interpret, localSeqLift, localSeqUnlift, reinterpret, send)
+import qualified Effectful.Dispatch.Dynamic as Dyn
 import Effectful.Error.Static (Error)
 import qualified Effectful.Error.Static as Eff
 import Effectful.Fail (Fail)
@@ -106,7 +106,7 @@ type instance Eff.DispatchOf (Direct f) = Eff.Dynamic
 -- Direct version of send
 sendDirect ::
   Direct f :> es => (f (Eff es) -> Eff es a) -> Eff es a
-sendDirect = send . Direct
+sendDirect = Dyn.send . Direct
 
 -- Define the effectful operations using sendDirect
 readFile' ::
@@ -157,7 +157,7 @@ interpretDirect ::
   f (Eff es) ->
   Eff (Direct f : es) a ->
   Eff es a
-interpretDirect p = interpret $ \env (Direct f) ->
-  localSeqUnlift env $ \k' ->
-    localSeqLift env $ \k ->
+interpretDirect p = Dyn.interpret $ \env (Direct f) ->
+  Dyn.localSeqUnlift env $ \k' ->
+    Dyn.localSeqLift env $ \k ->
       k' (f (fmapEffect k p))
