@@ -117,7 +117,7 @@ someExample = runPureEff (withYieldToList $ \y -> some y *> pure id)
 
 type (:&) = (:)
 
--- Oh dear
+-- Oh dear FIXME this is probably wrong for effectful
 insertSecond :: Eff (c1 :& b) r -> Eff (c1 :& (c2 :& b)) r
 insertSecond = unsafeCoerce
 
