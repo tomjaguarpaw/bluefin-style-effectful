@@ -14,8 +14,8 @@ import qualified Effectful.Error.Static as Eff
 import Effectful.Fail (Fail)
 import Effectful.State.Static.Local (State)
 import qualified Effectful.State.Static.Local as Eff
-import Prelude hiding (return)
 import Unsafe.Coerce (unsafeCoerce)
+import Prelude hiding (return)
 
 class (a Eff.:> b) => a :> b
 
@@ -53,7 +53,7 @@ runErrorNoCallStack ::
 runErrorNoCallStack k = Eff.runErrorNoCallStack $ withHandle k
 
 get :: (s :> es) => Handle (State st) s -> Eff es st
-get = (Eff.get `applyHandle`)
+get h = Eff.get `applyHandle` h
 
 put :: (s :> es) => Handle (State st) s -> st -> Eff es ()
 put h st = Eff.put st `applyHandle` h
@@ -97,7 +97,7 @@ type Coroutine a b = Handle (Direct (CoroutineImpl a b))
 
 type Stream a = Coroutine a ()
 
-yield :: e :> es => Coroutine a b e -> a -> Eff es b
+yield :: (e :> es) => Coroutine a b e -> a -> Eff es b
 yield y a = sendDirect (\f -> yieldImpl f a) `applyHandle` y
 
 forEach ::
@@ -106,7 +106,7 @@ forEach ::
   Eff es r
 forEach iter body = interpretDirect (MkCoroutineImpl body) $ withHandle iter
 
-some :: e :> es => Stream Int e -> Eff es ()
+some :: (e :> es) => Stream Int e -> Eff es ()
 some y = do
   yield y 1
   yield y 2
@@ -127,7 +127,7 @@ yieldToReverseList ::
   Eff es ([a], r)
 yieldToReverseList f = do
   evalState [] $ \st -> do
-    r <- forEach (insertSecond. f) $ \i ->
+    r <- forEach (insertSecond . f) $ \i ->
       modify st (i :)
     as <- get st
     pure (as, r)
