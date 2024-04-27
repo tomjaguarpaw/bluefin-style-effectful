@@ -15,6 +15,7 @@ import Effectful.Fail (Fail)
 import Effectful.State.Static.Local (State)
 import qualified Effectful.State.Static.Local as Eff
 import Prelude hiding (return)
+import Unsafe.Coerce (unsafeCoerce)
 
 class (a Eff.:> b) => a :> b
 
@@ -57,6 +58,9 @@ get = (Eff.get `applyHandle`)
 put :: (s :> es) => Handle (State st) s -> st -> Eff es ()
 put h st = Eff.put st `applyHandle` h
 
+modify :: (e :> es) => Handle (State s) e -> (s -> s) -> Eff es ()
+modify h f = Eff.modify f `applyHandle` h
+
 evalState ::
   s ->
   (forall e. Handle (State s) e -> Eff (e : es) a) ->
@@ -83,6 +87,58 @@ twoState = runPureEff $
       s2' <- get s2
       pure (s1', s2')
 
+newtype CoroutineImpl a b m = MkCoroutineImpl
+  {yieldImpl :: a -> m b}
+
+instance EffectDirect (CoroutineImpl a b) where
+  fmapEffect f (MkCoroutineImpl y) = MkCoroutineImpl (f . y)
+
+type Coroutine a b = Handle (Direct (CoroutineImpl a b))
+
+type Stream a = Coroutine a ()
+
+yield :: e :> es => Coroutine a b e -> a -> Eff es b
+yield y a = sendDirect (\f -> yieldImpl f a) `applyHandle` y
+
+forEach ::
+  (forall e. Coroutine a b e -> Eff (e :& es) r) ->
+  (a -> Eff es b) ->
+  Eff es r
+forEach iter body = interpretDirect (MkCoroutineImpl body) $ withHandle iter
+
+some :: e :> es => Stream Int e -> Eff es ()
+some y = do
+  yield y 1
+  yield y 2
+  yield y 100
+
+someExample :: [Int]
+someExample = runPureEff (withYieldToList $ \y -> some y *> pure id)
+
+type (:&) = (:)
+
+-- Oh dear
+insertSecond :: Eff (c1 :& b) r -> Eff (c1 :& (c2 :& b)) r
+insertSecond = unsafeCoerce
+
+yieldToReverseList ::
+  (forall e. Stream a e -> Eff (e :& es) r) ->
+  -- | Yielded elements in reverse order, and final result
+  Eff es ([a], r)
+yieldToReverseList f = do
+  evalState [] $ \st -> do
+    r <- forEach (insertSecond. f) $ \i ->
+      modify st (i :)
+    as <- get st
+    pure (as, r)
+
+withYieldToList ::
+  (forall e. Stream a e -> Eff (e :& es) ([a] -> r)) ->
+  Eff es r
+withYieldToList f = do
+  (revl, g) <- yieldToReverseList f
+  pure (g (reverse revl))
+
 -- Direct encoding of the effects we want in our filesystem
 data Filesystem m = MkFilesystem
   { readFileFS :: FilePath -> m String,
@@ -98,14 +154,14 @@ instance EffectDirect Filesystem where
   fmapEffect f MkFilesystem {readFileFS = r, writeFileFS = w} =
     MkFilesystem {readFileFS = f . r, writeFileFS = \s -> f . w s}
 
--- Adapt direct effects for the existing cleff type-level encoding
-data Direct f (m :: Type -> Type) (a :: Type) = Direct (f m -> m a)
+-- Adapt direct effects for the existing effectful type-level encoding
+newtype Direct f (m :: Type -> Type) (a :: Type) = Direct (f m -> m a)
 
 type instance Eff.DispatchOf (Direct f) = Eff.Dynamic
 
 -- Direct version of send
 sendDirect ::
-  Direct f :> es => (f (Eff es) -> Eff es a) -> Eff es a
+  (Direct f :> es) => (f (Eff es) -> Eff es a) -> Eff es a
 sendDirect = Dyn.send . Direct
 
 -- Define the effectful operations using sendDirect
