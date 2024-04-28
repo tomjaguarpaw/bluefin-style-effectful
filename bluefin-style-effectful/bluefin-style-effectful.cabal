@@ -7,10 +7,10 @@ author:             Tom Ellis
 maintainer:         Tom Ellis
 build-type:         Simple
 extra-doc-files:    CHANGELOG.md
-description:        The Bluefin effect system, internals
-synopsis:           The Bluefin effect system, internals
-homepage:           https://github.com/tomjaguarpaw/bluefin
-bug-reports:        https://github.com/tomjaguarpaw/bluefin/issues
+description:        Bluefin-style API for effectful
+synopsis:           Bluefin-style API for effectful
+homepage:           https://github.com/tomjaguarpaw/bluefin-style-effectful
+bug-reports:        https://github.com/tomjaguarpaw/bluefin-style-effectful/issues
 
 common defaults
     ghc-options: -Wall
@@ -84,8 +84,6 @@ library
       monad-control < 1.1
     ghc-options: -Wall
     exposed-modules:
-      Bluefin.Internal,
-      Bluefin.Internal.Examples
 
 test-suite bluefin-test
     import:           defaults

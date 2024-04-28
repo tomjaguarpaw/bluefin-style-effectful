@@ -1,16 +1,16 @@
 cabal-version:      3.0
 name:               bluefin-internal
-version:            0.0.6.0
+version:            0.0.0.0
 license:            MIT
 license-file:       LICENSE
 author:             Tom Ellis
 maintainer:         Tom Ellis
 build-type:         Simple
 extra-doc-files:    CHANGELOG.md
-description:        The Bluefin effect system, internals
-synopsis:           The Bluefin effect system, internals
-homepage:           https://github.com/tomjaguarpaw/bluefin
-bug-reports:        https://github.com/tomjaguarpaw/bluefin/issues
+description:        Bluefin-style API for effectful, internals
+synopsis:           Bluefin-style API for effectful, internals
+homepage:           https://github.com/tomjaguarpaw/bluefin-style-effectful
+bug-reports:        https://github.com/tomjaguarpaw/bluefin-style-effectful/issues
 
 common defaults
     ghc-options: -Wall
@@ -91,4 +91,4 @@ test-suite bluefin-style-effectful-test
     main-is:          Main.hs
     build-depends:
         base,
-        bluefin-internal
+        bluefin-style-effectful-internal
