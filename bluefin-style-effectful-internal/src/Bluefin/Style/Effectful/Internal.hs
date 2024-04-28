@@ -14,7 +14,6 @@ import qualified Effectful.Error.Static as Eff
 import Effectful.Fail (Fail)
 import Effectful.State.Static.Local (State)
 import qualified Effectful.State.Static.Local as Eff
-import Unsafe.Coerce (unsafeCoerce)
 import Prelude hiding (return)
 
 class (a Eff.:> b) => a :> b
@@ -77,15 +76,34 @@ xs !? i = runPureEff $
         put s (i' + 1)
       throwError return Nothing
 
-twoState :: (Int, Int)
+twoState :: Either (Eff.CallStack, ()) (Integer, Integer)
 twoState = runPureEff $
+ Eff.runError $
   evalState 1 $ \s1 -> do
     evalState 2 $ \s2 -> do
       put s1 10
       put s2 20
       s1' <- get s1
       s2' <- get s2
+      blag ()
       pure (s1', s2')
+
+blag :: Error e :> es0 => e -> Eff es0 a
+blag = Eff.throwError
+
+blog :: Eff es0 (Either (Eff.CallStack, e0) a)
+blog = Eff.runError (Eff.throwError ())
+
+blah :: Error () :> es => Eff es a
+blah =
+    evalState 1 $ \s1 -> do
+    evalState 2 $ \s2 -> do
+      put s1 10
+      put s2 20
+      s1' <- get s1
+      s2' <- get s2
+      blag ()
+
 
 newtype CoroutineImpl a b m = MkCoroutineImpl
   {yieldImpl :: a -> m b}
@@ -117,9 +135,8 @@ someExample = runPureEff (withYieldToList $ \y -> some y *> pure id)
 
 type (:&) = (:)
 
--- Oh dear FIXME this is probably wrong for effectful
 insertSecond :: Eff (c1 :& b) r -> Eff (c1 :& (c2 :& b)) r
-insertSecond = unsafeCoerce
+insertSecond = Eff.inject
 
 yieldToReverseList ::
   (forall e. Stream a e -> Eff (e :& es) r) ->
